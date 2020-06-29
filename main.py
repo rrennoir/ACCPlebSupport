@@ -1,66 +1,150 @@
 import discord
+from discord.ext import commands
+import json
+from pprint import pprint
 from random import choice, randint
-# from discord.ext import commands
 
 
-class Botclient(discord.Client):
+class AccBot(commands.Bot):
+    def __init__(self, command_prefix, description=None, **options):
+        super().__init__(command_prefix, description=description)
+        self.admin_pwd = "12345"
+        self.config = None
+        self.token = None
+        self.leaderboard = None
 
-    cars = [
-        "ferrari 488",
-        "Aston Martin V8"
-        "Audi R8 evo",
-        "Porsche 911.2 GT3 R"
-    ]
+    def load_config(self, path: str):
 
-    track_list = [
-        "spa",
-        "monza",
-        "brands_hatch",
-        "barcelona"
-    ]
+        print("Loading config...")
+        with open(path, "r") as config_file:
+            self.config = json.load(config_file)
+            pprint(self.config)
 
-    emoji_list = [
-        "kappa",
-        "THINKING_HD"
-    ]
+    def load_token(self, path: str):
 
-    async def on_ready(self):
+        print("Loading token...")
+        with open(path) as token_file:
+            self.token = token_file.readline()
 
-        print(f"Logged on as {self.user}")
+    def load_leaderboard(self, path: str):
+        try:
+            with open(path, "r") as leaderboard_fp:
+                self.leaderboard = json.load(leaderboard_fp)
 
-    async def on_message(self, message):
+        except FileNotFoundError:
+            self.leaderboard = {}
 
-        if message.author != self.user:
+    async def save_leaderbard(self, path: str):
+        with open(path, "w") as leaderboard_fp:
+            json.dump(self.leaderboard, leaderboard_fp)
 
-            if message.content[0] == "!":
+    async def get_leaderboard_time(self, ctx: commands.Context, track: str):
 
-                command = message.content.lower().split()
-                print(f"Receved command: {command}")
+        try:
+            driver = ctx.author.name
+            entry = self.leaderboard[track]
+            await ctx.send(entry)
 
-                if command[0] == "!map":
-                    await self.track_maps(command[1], message.channel)
+        except KeyError:
+            if track in self.config["tracks"]:
+                await ctx.send(f"{track} desn't have a time yet, may be add yours !")
 
-                if command[0] == "!randomcar":
-                    await message.channel.send(choice(Botclient.cars))
+            else:
+                await ctx.send("Unkown track!")
 
-            elif message.content.split(":")[1] in Botclient.emoji_list and randint(0, 100) <= 10:
-                guild = discord.utils.get(client.guilds, name='Alpiniste Aveugle')
+    async def add_leaderboard_time(self, ctx: commands.Context,
+                                   track: str, new_time: str):
+        driver = ctx.author.name
+        try:
+            time = self.leaderboard[track][driver]
+            if time > new_time:
+                self.leaderboard[track][driver] = new_time
 
-                emoji = discord.utils.get(guild.emojis, name=message.content.split(":")[1])
-                await message.channel.send(emoji)
+            else:
+                await ctx.send(f"You didn't have improved your time at {track} of {time}")
 
-    async def track_maps(self, track, channel):
+        except KeyError:
+            if track in self.config["tracks"]:
+                self.leaderboard.update({track: {driver: new_time}})
 
-        if track in Botclient.track_list:
-            trackmap = discord.File(f"./TrackMaps/{track}.png")
-            await channel.send(f"Theres is the map of {track}", file=trackmap)
+            else:
+                await ctx.send("Unkown track!")
+
+
+desc = "Hello I'm the techsupport for the ACC plebs !"
+bot = AccBot(command_prefix="!", description=desc)
+bot.load_config("./config.json")
+bot.load_token("./Token.txt")
+bot.load_leaderboard("./leaderboard.json")
+
+
+@bot.event
+async def on_ready():
+    print("Bot is ready")
+
+
+@bot.command()
+async def save(ctx: commands.Context):
+    await bot.save_leaderbard("./leaderboard.json")
+
+
+@bot.command()
+async def randomcar(ctx: commands.Context):
+    await ctx.send(choice(bot.config["cars"]))
+
+
+@bot.command()
+async def track(ctx: commands.Context, track_name: str = None):
+
+    if track_name in bot.config["tracks"]:
+        track_map = discord.File(f"./TrackMaps/{track_name}.png")
+        await ctx.send(file=track_map)
+
+    else:
+        await ctx.send(f"'{track_name}' doesn't exist.")
+
+
+@bot.command()
+async def pressures(ctx: commands.Context):
+    await ctx.send("Around 27.5 Psi on the dry\n30 on the Wet.")
+
+
+@bot.command(description="Get the leaderboard of the track or add a your time.")
+async def leaderboard(ctx: commands.Context, *args):
+
+    if len(args) == 1:
+
+        track = args[0].lower()
+        await bot.get_leaderboard_time(ctx, track)
+
+    elif len(args) == 2:
+
+        track = args[0].lower()
+        time = args[1]
+        # TODO find a better way for time check
+        minute, s_ms = time.split(":")
+        second, millisecond = s_ms.split(".")
+        if len(minute) == 1 and len(second) == 2 and len(millisecond) == 3:
+            await bot.add_leaderboard_time(ctx, track, time)
 
         else:
-            await channel.send(f"'{track}' doesn't exist.")
+            ctx.send("Incorecte time format!\nIt should be `0:00.000`")
+
+    else:
+        await ctx.send("How to use: `!leaderboard 'track' [time to add]`")
 
 
-with open("./Token.txt") as token_file:
-    token = token_file.readline()
+@bot.command()
+async def stop(ctx, pwd):
 
-client = Botclient()
-client.run(token)
+    if pwd == bot.admin_pwd:
+        print("Shuting down.\nBye!")
+        await ctx.send("Shuting down...")
+        await bot.close()
+
+    else:
+        await ctx.send("Invalide password.")
+
+
+print("Starting bot...")
+bot.run(bot.token)

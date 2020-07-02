@@ -116,7 +116,6 @@ class AccBot(commands.Bot):
             improved = False
             new_index = None
             for entry in track_ranking:
-                print(entry)
                 if entry["driver"] == driver and entry["car"] == car:
                     old_index = track_ranking.index(entry)
                     improved = entry["time"] > new_time
@@ -125,6 +124,8 @@ class AccBot(commands.Bot):
                     new_index = track_ranking.index(entry)
 
             if improved:
+                print(f"Time improved, deleting entry N°{old_index}",
+                      f"{track_ranking[old_index]}")
                 track_ranking.pop(old_index)
 
                 track_ranking.insert(new_index, {
@@ -141,6 +142,7 @@ class AccBot(commands.Bot):
 
         except KeyError:
             if track in self.config["tracks"]:
+                print(f"Adding track '{track}' to the leaderboard")
                 self.leaderboard.update({track: [{
                     "driver": driver,
                     "car": car,
@@ -178,9 +180,9 @@ class AccBot(commands.Bot):
                 await ctx.send("Unkown track!")
 
 
-only_url = len(sys.argv) > 0 and sys.argv[1] == "-onlyurl"
+only_url = len(sys.argv) > 1 and sys.argv[1] == "-onlyurl"
 desc = "Hello I'm the techsupport for the ACC plebs !"
-bot = AccBot(command_prefix="!", only_url=only_url, description=desc)
+bot = AccBot("!", only_url, desc)
 bot.load_config("./config.json")
 bot.load_token("./Token.txt")
 bot.load_leaderboard("./leaderboard.json")
@@ -197,31 +199,53 @@ async def save(ctx: commands.Context):
 
 
 @bot.command()
-async def randomcar(ctx: commands.Context):
-    await ctx.send(choice(bot.config["cars"]))
+async def car(ctx: commands.Context, *args):
+
+    if len(args) > 0:
+        if args[0] == "random":
+            await ctx.send(choice(bot.config["cars"]))
+
+        elif args[0] == "list":
+            await ctx.send(bot.config["cars"])
+
+        else:
+            await ctx.send("Incorrect option,\n"
+                           "Usage: `!car [random | list]`")
+
+    else:
+        await ctx.send("Incorrect option,\n"
+                       "Usage: `!car [random | list]`")
 
 
 @bot.command()
-async def track(ctx: commands.Context, track_name: str = None):
+async def track(ctx: commands.Context, option=None, track_name=None):
 
-    if track_name in bot.config["tracks"]:
-        if bot.only_url:
-            track_map_link = bot.config["track_url"][track_name]
-            await ctx.send(track_map_link)
+    if option == "map":
+
+        if track_name in bot.config["tracks"]:
+
+            if bot.only_url:
+                track_map_link = bot.config["track_url"][track_name]
+                await ctx.send(track_map_link)
+
+            else:
+                track_map = discord.File(f"./TrackMaps/{track_name}.png")
+                await ctx.send(file=track_map)
+
         else:
-            track_map = discord.File(f"./TrackMaps/{track_name}.png")
-            await ctx.send(file=track_map)
+            await ctx.send(f"'{track_name}' doesn't exist.\n"
+                           "Use `track list` for the track list.")
 
-    elif track_name == "?":
-        await ctx.send(bot.config["track"])
+    elif option == "list":
+        await ctx.send(bot.config["tracks"])
 
     else:
         await ctx.send(f"'{track_name}' doesn't exist.\n"
-                       "Use `track ?` for the track list.")
+                       "Use `track list` for the track list.")
 
 
 @bot.command()
-async def pressures(ctx: commands.Context, condition: str = None):
+async def pressures(ctx: commands.Context, condition: str = ""):
 
     condition = condition.lower()
     if condition == "dry":

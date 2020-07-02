@@ -1,1 +1,1 @@
-worker: python main.py TOKEN -onlyurl
+worker: python main.py -onlyurl

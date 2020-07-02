@@ -8,7 +8,7 @@ from random import choice, randint
 
 
 class AccBot(commands.Bot):
-    def __init__(self, command_prefix: str, only_link=False, description=None,
+    def __init__(self, command_prefix: str, only_ulr=False, description=None,
                  **options):
         super().__init__(command_prefix, description=description)
         self.admin_pwd: str = "12345"
@@ -16,7 +16,7 @@ class AccBot(commands.Bot):
         self.token: str = None
         self.leaderboard: dict = None
         self.leaderboard_modified: bool = False
-        self.only_link = only_link
+        self.only_url = only_url
 
         self.bg_task = self.loop.create_task(
             self.save_leaderbard("./leaderboard.json"))
@@ -37,6 +37,7 @@ class AccBot(commands.Bot):
 
         except FileNotFoundError:
             print("Token.txt doesn't exist, using config var.")
+            self.token = sys.argv[1]
 
     def load_leaderboard(self, path: str):
 
@@ -176,13 +177,13 @@ class AccBot(commands.Bot):
                 await ctx.send("Unkown track!")
 
 
-only_link = False
+only_url = False
 for arg in sys.argv:
-    if arg == "-onlylink":
-        only_link = True
+    if arg == "-onlyurl":
+        only_url = True
 
 desc = "Hello I'm the techsupport for the ACC plebs !"
-bot = AccBot(command_prefix="!", only_link=only_link, description=desc)
+bot = AccBot(command_prefix="!", only_url=only_url, description=desc)
 bot.load_config("./config.json")
 bot.load_token("./Token.txt")
 bot.load_leaderboard("./leaderboard.json")
@@ -207,7 +208,7 @@ async def randomcar(ctx: commands.Context):
 async def track(ctx: commands.Context, track_name: str = None):
 
     if track_name in bot.config["tracks"]:
-        if bot.only_link:
+        if bot.only_url:
             track_map_link = bot.config["track_url"][track_name]
             await ctx.send(track_map_link)
         else:

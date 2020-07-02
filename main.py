@@ -39,7 +39,6 @@ class AccBot(commands.Bot):
         except FileNotFoundError:
             print("Token.txt doesn't exist, using config var.")
             self.token = os.environ.get('TOKEN', None)
-            print(self.token)
 
     def load_leaderboard(self, path: str):
 
@@ -303,4 +302,7 @@ async def stop(ctx, pwd: str = None):
 
 
 print("Starting bot...")
-bot.run(bot.token)
+if bot.token:
+    bot.run(bot.token)
+else:
+    print("No token, bot not starting.")

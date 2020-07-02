@@ -1,4 +1,4 @@
-Bot Discord UFFS Version 0.2
+Bot Discord UFFS Version 0.3.1
 
 Commands:
 
@@ -12,8 +12,6 @@ Commands:
     Return the correct hot pressure for dry and wet condition.
 
 - leaderboard
-
-- save
 
 - stop
     Disconnect the bot.

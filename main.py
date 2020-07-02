@@ -30,9 +30,13 @@ class AccBot(commands.Bot):
 
     def load_token(self, path: str):
 
-        print("Loading token...")
-        with open(path) as token_file:
-            self.token = token_file.readline()
+        try:
+            print("Loading token...")
+            with open(path, "r") as token_file:
+                self.token = token_file.readline()
+
+        except FileNotFoundError:
+            print("Token.txt doesn't exist, using config var.")
 
     def load_leaderboard(self, path: str):
 
@@ -172,7 +176,11 @@ class AccBot(commands.Bot):
                 await ctx.send("Unkown track!")
 
 
-only_link = len(sys.argv) > 1 and sys.argv[1] == "-onlylink"
+only_link = False
+for arg in sys.argv:
+    if arg == "-onlylink":
+        only_link = True
+
 desc = "Hello I'm the techsupport for the ACC plebs !"
 bot = AccBot(command_prefix="!", only_link=only_link, description=desc)
 bot.load_config("./config.json")
